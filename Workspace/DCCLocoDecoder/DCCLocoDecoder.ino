@@ -5,11 +5,14 @@
  * V0.1
  */
  
+extern "C"{
 #include <stdio.h>
-#include "pico/stdlib.h"
+#include <stdlib.h>
 #include "hardware/gpio.h"
 #include "hardware/pwm.h"
 #include <tusb.h>
+};
+
 #include "RP2040_DCC_Decoder.h"
 
 // GPIO definition
@@ -142,7 +145,7 @@ void InterpretPacket (void)
       // Check error detection byte
       // TODO
       
-      //printf ("%d\n", PacketSize);
+      Serial.printf ("%d\n", PacketSize);
   
       if (PacketSize == 3)
       {
@@ -244,9 +247,9 @@ void InterpretPacket (void)
 }  // InterpretPacket
 //---------------------------------------------------------------------------
 
-int main()
+void setup()
 {
-//  stdio_init_all();
+  Serial.begin(115200);
   
   gpio_init(LED_PIN);
   gpio_set_dir (LED_PIN, GPIO_OUT);
@@ -266,8 +269,7 @@ int main()
     
   // Wait here until USB communication is ready
   // TODO : remove after debugging
-  //while (!tud_cdc_connected())
-  //  sleep_ms(100);  
+  while(!Serial || millis() < 5000UL); // hangs here 5 seconds if no USB
 
   // Activate LED to show USB is connected    
   gpio_put (LED_PIN, 1);
@@ -277,37 +279,36 @@ int main()
   SetMotorSpeed (0);
       
   StartDCCDecoder ();
+}
+
+void loop()
+{
+  InterpretPacket ();
   
-  while (1)
-  {
-    InterpretPacket ();
-    
-    // Control function outputs depending on Function Control Word
-    // FUNC_A is on when F0=1 and forward direction, 0 when F0=0
-    if ((FunctionData&0x0001)!=0)
-    {  // FL activated
-      if (CurrentDirectionForward) 
-        gpio_put (FUNC_A_PIN, 1);
-      else 
-        gpio_put (FUNC_A_PIN, 0);
-    }
-    else gpio_put (FUNC_A_PIN, 0);
-    
-    // FUNC_B is on when F0=1 and reverse direction, 0 when F0=0
-    if ((FunctionData&0x0001)!=0)
-    {  // FL activated
-      if (CurrentDirectionForward) 
-        gpio_put (FUNC_B_PIN, 0);
-      else 
-        gpio_put (FUNC_B_PIN, 1); 
-    }
-    else gpio_put (FUNC_B_PIN, 0);
-    
-    // FUNC_C is controlled by F1
-    gpio_put (FUNC_C_PIN, ((FunctionData&0x0002)!=0));
-    
-    // FUNC_D is controlled by F2
-    gpio_put (FUNC_D_PIN, ((FunctionData&0x0004)!=0));    
+  // Control function outputs depending on Function Control Word
+  // FUNC_A is on when F0=1 and forward direction, 0 when F0=0
+  if ((FunctionData&0x0001)!=0)
+  {  // FL activated
+    if (CurrentDirectionForward) 
+      gpio_put (FUNC_A_PIN, 1);
+    else 
+      gpio_put (FUNC_A_PIN, 0);
   }
-}  // main
-//---------------------------------------------------------------------------
+  else gpio_put (FUNC_A_PIN, 0);
+  
+  // FUNC_B is on when F0=1 and reverse direction, 0 when F0=0
+  if ((FunctionData&0x0001)!=0)
+  {  // FL activated
+    if (CurrentDirectionForward) 
+      gpio_put (FUNC_B_PIN, 0);
+    else 
+      gpio_put (FUNC_B_PIN, 1); 
+  }
+  else gpio_put (FUNC_B_PIN, 0);
+  
+  // FUNC_C is controlled by F1
+  gpio_put (FUNC_C_PIN, ((FunctionData&0x0002)!=0));
+  
+  // FUNC_D is controlled by F2
+  gpio_put (FUNC_D_PIN, ((FunctionData&0x0004)!=0));    
+}
